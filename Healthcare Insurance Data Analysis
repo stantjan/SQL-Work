@@ -1,0 +1,445 @@
+Aim of Task
+Healthcare insurance industry data has exponentially grown much in recent years and hence the need to further utilize technology to better access healthcare data.
+The purpose of this task is to analyze healthcare data using SQL and obtain useful information from the data analysis, according to research needs.
+The research in this report will focus on analyzing the most cost-effective healthcare insurance provider, depending on diseases and age.
+The information explored in this data should result in providing options for patients researching the best healthcare insurance provider.
+
+Dataset
+The dataset obtained (healthcare_dataset) is from the following source:
+https://www.kaggle.com/datasets/prasad22/healthcare-dataset?select=healthcare_dataset.csv
+
+The 15 column titles in the spreadsheet are as follows: Name, Age, Gender, Blood Type, Medical Condition, Date of Admission, Doctor,
+Hospital, Insurance Provider, Billing Amount, Room Number, Admission Type, Discharge Date Medication, and Test Results.
+The data provided is not a real-life collection of data, however, this exercise is useful in its intended purpose to obtain planned
+information from the following queries. Originally there were more than 55,000 records (rows), however, due to the nature of the data,
+initially the data was cleaned by removing duplicates. Then SQL Queries were developed to answer the Task Queries, to intentionally uncover
+information about the data.
+
+
+Task Queries
+With the data, the aim of this task is to find the best healthcare insurance provider, based on cost, disease and age. As discussed above, the data needs to be
+cleaned for any duplicates and proper database schema needs to be established. To answer these questions, 3 task queries are developed based on these considerations:
+1.	How much is the average billing amount when patients subscribe to a certain insurance provider, based on disease? The SQL queries will focus on obtaining average billing amount.
+2.	Do different age groups receive the same billing amount on average, based on disease? The age groups will be: less than 25, 25 – 39, 40 – 54, 55 – 69, 70 or more.
+3.	Slightly irrelevant from the first two questions: what are the medical conditions with the highest inconclusive rate of results, and what are the medical conditions related to the types of admission (urgent, emergency or elective)?
+
+Cleaning the Data and Creating Database Schema on MySQL
+For the purposes of this assignment, MySQL (XAMPP and Apache) is used to create a database `healthcare_dataset`. The database is inserted and then further analyzed for possible schema.
+
+
+SQL Queries (MySQL):
+
+Healthcare Dataset
+
+Cleaning Data for any double-ups:
+
+/* ALTER TABLE healthcare_dataset ADD COLUMN ID INT AUTO_INCREMENT PRIMARY KEY;
+
+DELETE FROM healthcare_dataset
+WHERE ID NOT IN (
+    SELECT ID
+    FROM (
+        SELECT MIN(ID) AS ID
+        FROM healthcare_dataset
+        GROUP BY Name, 'Date of Admission'
+    ) AS subquery
+); */
+
+/* Check results */
+
+/* SELECT Name, COUNT(*) AS Count
+FROM healthcare_dataset
+GROUP BY Name
+HAVING COUNT(*) > 1; */
+
+
+
+Creating Schema Tables:
+
+/* CREATE TABLE PatientTable(
+    ID INT PRIMARY KEY AUTO_INCREMENT,
+    Name VARCHAR(50),
+    Age INT,
+    Gender ENUM('Male', 'Female'),
+    BloodType ENUM('A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'),
+    MedicalCondition VARCHAR(50)
+);
+
+
+CREATE TABLE HospitalTable(
+    HospitalID INT PRIMARY KEY AUTO_INCREMENT,
+    HospitalName VARCHAR(50)
+);
+
+
+CREATE TABLE InsuranceProviderTable(
+    InsuranceProviderID INT PRIMARY KEY AUTO_INCREMENT,
+    InsuranceProviderName VARCHAR(50)
+);
+
+
+CREATE TABLE AdmissionTable(
+    AdmissionID INT PRIMARY KEY AUTO_INCREMENT,
+    PatientID INT,
+    HospitalID INT,
+    DateofAdmission DATE,
+    AdmissionType ENUM('Urgent', 'Emergency', 'Elective'),
+    BillingAmount DECIMAL(10, 2),
+    FOREIGN KEY (PatientID) REFERENCES PatientTable(ID),
+    FOREIGN KEY (HospitalID) REFERENCES HospitalTable(HospitalID)
+);
+
+
+CREATE TABLE BillingTable(
+    BillingID INT PRIMARY KEY AUTO_INCREMENT,
+    AdmissionID INT,
+    InsuranceProviderID INT,
+    BillingAmount DECIMAL(10, 2),
+    FOREIGN KEY (AdmissionID) REFERENCES AdmissionTable(AdmissionID),
+    FOREIGN KEY (InsuranceProviderID) REFERENCES InsuranceProviderTable(InsuranceProviderID)
+); */
+
+
+/* CREATE TABLE MedicationTable(
+    MedicationID INT PRIMARY KEY AUTO_INCREMENT,
+    PatientID INT,
+    MedicationName VARCHAR(50),
+    FOREIGN KEY (PatientID) REFERENCES PatientTable(ID)
+); 
+
+
+CREATE TABLE TestResultsTable(
+    TestResultsID INT PRIMARY KEY AUTO_INCREMENT,
+    PatientID INT,
+    TestResult ENUM('Normal', 'Inconclusive', 'Abnormal'),
+    FOREIGN KEY (PatientID) REFERENCES PatientTable(ID)
+); */
+
+Entering data from healthcare_dataset:
+
+PatientTable
+INSERT INTO patienttable(ID, Name, Age, Gender, BloodType, MedicalCondition)
+SELECT ID, Name, Age, Gender, `Blood Type`, `Medical Condition`
+FROM healthcare_dataset;
+
+HospitalTable
+INSERT INTO hospitaltable (HospitalName)
+SELECT DISTINCT Hospital
+FROM healthcare_dataset;
+
+InsuranceProviderTable
+INSERT INTO InsuranceProviderTable (InsuranceProviderName)
+SELECT DISTINCT `Insurance Provider`
+FROM healthcare_dataset;
+
+AdmissionTable
+/* INSERT INTO AdmissionTable (AdmissionID, PatientID, HospitalID, DateOfAdmission, AdmissionType, BillingAmount)
+SELECT 
+    hd.ID AS AdmissionID,
+    p.ID AS PatientID,
+    h.HospitalID,
+    hd.`Date Of Admission`,
+    hd.`Admission Type`,
+    hd.`Billing Amount`
+FROM 
+    healthcare_dataset hd
+JOIN 
+    patienttable p ON p.ID = hd.ID
+JOIN 
+    hospitaltable h ON h.HospitalName = hd.Hospital;
+
+BillingTable
+INSERT INTO BillingTable (AdmissionID, InsuranceProviderID, BillingAmount)
+SELECT
+	hd.ID AS AdmissionID,
+    i.InsuranceProviderID,
+    hd.`Billing Amount`
+FROM
+	healthcare_dataset hd
+JOIN
+	insuranceprovidertable i ON i.InsuranceProviderName = hd.`Insurance Provider`
+MedicationTable
+INSERT INTO MedicationTable (PatientID, MedicationName)
+SELECT
+	p.ID AS PatientID,
+    hd.Medication
+FROM
+	healthcare_dataset hd
+JOIN
+	PatientTable p ON p.ID = hd.ID
+WHERE
+	hd.Medication IS NOT NULL;
+
+TestResultsTable
+INSERT INTO TestResultsTable (PatientID, TestResult)
+SELECT 
+    p.ID AS PatientID, 
+    hd.`Test Results`
+FROM 
+    healthcare_dataset hd
+JOIN
+	PatientTable p ON p.ID = hd.ID
+
+
+
+
+
+
+
+
+SQL Queries to Answer Questions:
+
+-- Question 1:
+-- Average Billing Amount by Insurance Provider and Medical Condition
+-- Without Age Partition
+
+SELECT
+	p.MedicalCondition,
+    i.InsuranceProviderName,
+    AVG(b.BillingAmount) AS AverageBill,
+    MAX(b.BillingAmount) AS MaxBill,
+    MIN(b.BillingAmount) AS MinBill
+FROM
+	PatientTable p
+JOIN
+	AdmissionTable a ON p.ID = a.PatientID
+JOIN
+	BillingTable b ON a.AdmissionID = b.AdmissionID
+JOIN
+	InsuranceProviderTable i ON b.InsuranceProviderID = i.InsuranceProviderID
+GROUP BY
+	p.MedicalCondition,
+    i.InsuranceProviderName
+ORDER BY
+	p.MedicalCondition,
+    AverageBill DESC;
+
+
+
+
+-- Question 2:
+-- Average Billing Amount by Insurance Provider and Medical Condition
+-- With Age Partition
+
+SELECT 
+    CASE
+        WHEN p.Age < 25 THEN 'Less than 25'
+        WHEN p.Age BETWEEN 25 AND 39 THEN '25 to 39'
+        WHEN p.Age BETWEEN 40 AND 54 THEN '40 to 54'
+        WHEN p.Age BETWEEN 55 AND 69 THEN '55 to 69'
+        ELSE '70 or above'
+    END AS AgeRange,
+	p.MedicalCondition,
+    i.InsuranceProviderName,
+    AVG(b.BillingAmount) AS AverageBill,
+    MAX(b.BillingAmount) AS MaxBill,
+    MIN(b.BillingAmount) AS MinBill
+FROM
+	PatientTable p
+JOIN
+	AdmissionTable a ON p.ID = a.PatientID
+JOIN
+	BillingTable b ON a.AdmissionID = b.AdmissionID
+JOIN
+	InsuranceProviderTable i ON b.InsuranceProviderID = i.InsuranceProviderID
+GROUP BY
+	AgeRange,
+	p.MedicalCondition,
+    i.InsuranceProviderName
+ORDER BY
+	AgeRange,
+	p.MedicalCondition,
+    i.InsuranceProviderName;
+
+
+
+
+-- Question 3a:
+-- Medical Conditions with Highest Inconclusive Test Results
+
+SELECT 
+    p.MedicalCondition,
+    COUNT(t.TestResult) AS InconclusiveCount
+FROM 
+    PatientTable p
+JOIN 
+    TestResultsTable t ON p.ID = t.PatientID
+WHERE 
+    t.TestResult = 'Inconclusive'
+GROUP BY 
+    p.MedicalCondition
+ORDER BY 
+    InconclusiveCount DESC;
+
+
+
+
+-- Question 3b:
+-- Medical Conditions Related to Admission Type
+
+SELECT 
+    p.MedicalCondition,
+    a.AdmissionType,
+    COUNT(*) AS Count
+FROM 
+    PatientTable p
+JOIN 
+    AdmissionTable a ON p.ID = a.PatientID
+GROUP BY 
+    p.MedicalCondition,
+    a.AdmissionType
+ORDER BY 
+	p.MedicalCondition,
+    Count DESC; */
+
+
+ Proper SQL:
+
+-- Create ID for unique rows
+ALTER TABLE healthcare_dataset ADD COLUMN ID INT AUTO_INCREMENT PRIMARY KEY;
+
+-- Delete duplicates, detect by Name, Date of Admission
+-- Group same IDs by Name and Date of Admission, then delete IDs of
+-- rows that have the same name and Date of Admission
+DELETE FROM healthcare_dataset
+WHERE ID NOT IN (
+    SELECT ID
+    FROM (
+        SELECT MIN(ID) AS ID
+        FROM healthcare_dataset
+        GROUP BY Name, 'Date of Admission'
+    ) AS subquery    -- This method utilizes query within a query
+);
+
+
+-- Create all schema tables required
+CREATE TABLE PatientTable(
+    ID INT PRIMARY KEY AUTO_INCREMENT,
+    Name VARCHAR(50),
+    Age INT,
+    Gender ENUM('Male', 'Female'),
+    BloodType ENUM('A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'),
+    MedicalCondition VARCHAR(50)
+);
+
+
+CREATE TABLE HospitalTable(
+    HospitalID INT PRIMARY KEY AUTO_INCREMENT,
+    HospitalName VARCHAR(50)
+);
+
+
+CREATE TABLE InsuranceProviderTable(
+    InsuranceProviderID INT PRIMARY KEY AUTO_INCREMENT,
+    InsuranceProviderName VARCHAR(50)
+);
+
+
+CREATE TABLE AdmissionTable(
+    AdmissionID INT PRIMARY KEY AUTO_INCREMENT,
+    PatientID INT,
+    HospitalID INT,
+    DateofAdmission DATE,
+    AdmissionType ENUM('Urgent', 'Emergency', 'Elective'),
+    BillingAmount DECIMAL(10, 2),
+    FOREIGN KEY (PatientID) REFERENCES PatientTable(ID),
+    FOREIGN KEY (HospitalID) REFERENCES HospitalTable(HospitalID)
+);
+
+
+CREATE TABLE BillingTable(
+    BillingID INT PRIMARY KEY AUTO_INCREMENT,
+    AdmissionID INT,
+    InsuranceProviderID INT,
+    BillingAmount DECIMAL(10, 2),
+    FOREIGN KEY (AdmissionID) REFERENCES AdmissionTable(AdmissionID),
+    FOREIGN KEY (InsuranceProviderID) REFERENCES InsuranceProviderTable(InsuranceProviderID)
+);
+
+
+CREATE TABLE MedicationTable(
+    MedicationID INT PRIMARY KEY AUTO_INCREMENT,
+    PatientID INT,
+    MedicationName VARCHAR(50),
+    FOREIGN KEY (PatientID) REFERENCES PatientTable(ID)
+); 
+
+
+CREATE TABLE TestResultsTable(
+    TestResultsID INT PRIMARY KEY AUTO_INCREMENT,
+    PatientID INT,
+    TestResult ENUM('Normal', 'Inconclusive', 'Abnormal'),
+    FOREIGN KEY (PatientID) REFERENCES PatientTable(ID)
+);
+
+
+-- Entering data from healthcare_dataset
+
+-- PatientTable (ID is connected to 3 foreign keys in three other tables)
+INSERT INTO patienttable(ID, Name, Age, Gender, BloodType, MedicalCondition)
+SELECT ID, Name, Age, Gender, `Blood Type`, `Medical Condition`
+FROM healthcare_dataset;
+
+
+-- HospitalTable
+INSERT INTO hospitaltable (HospitalName)
+SELECT DISTINCT Hospital
+FROM healthcare_dataset;
+
+
+-- InsuranceProviderTable
+INSERT INTO InsuranceProviderTable (InsuranceProviderName)
+SELECT DISTINCT `Insurance Provider`
+FROM healthcare_dataset;
+
+
+-- AdmissionTable (This is connected to multiple tables, see FOREIGN KEYs)
+INSERT INTO AdmissionTable (AdmissionID, PatientID, HospitalID, DateOfAdmission, AdmissionType, BillingAmount)
+SELECT 
+    hd.ID AS AdmissionID,
+    p.ID AS PatientID,    -- connected to ID
+    h.HospitalID,    -- connected to HospitalTable
+    hd.`Date Of Admission`,
+    hd.`Admission Type`,
+    hd.`Billing Amount`
+FROM 
+    healthcare_dataset hd
+JOIN 
+    patienttable p ON p.ID = hd.ID
+JOIN 
+    hospitaltable h ON h.HospitalName = hd.Hospital;
+
+
+-- BillingTable (this is connected to two other tables, see FOREIGN KEYs)
+INSERT INTO BillingTable (AdmissionID, InsuranceProviderID, BillingAmount)
+SELECT
+	hd.ID AS AdmissionID,    -- connected to AdmissionTable
+    i.InsuranceProviderID,
+    hd.`Billing Amount`
+FROM
+	healthcare_dataset hd
+JOIN
+	insuranceprovidertable i ON i.InsuranceProviderName = hd.`Insurance Provider`;
+
+
+-- MedicationTable (connected to PatientTable by ID)
+INSERT INTO MedicationTable (PatientID, MedicationName)
+SELECT
+	p.ID AS PatientID,
+    hd.Medication
+FROM
+	healthcare_dataset hd
+JOIN
+	PatientTable p ON p.ID = hd.ID;
+
+
+-- TestResultsTable (connected to PatientTable by ID)
+INSERT INTO TestResultsTable (PatientID, TestResult)
+SELECT 
+    p.ID AS PatientID, 
+    hd.`Test Results`
+FROM 
+    healthcare_dataset hd
+JOIN
+	PatientTable p ON p.ID = hd.ID;
+    
